@@ -1,0 +1,62 @@
+{
+  "TIMEOUT": {
+    "definition": "An operation did not complete within its allotted deadline and was aborted by the caller or a watchdog. Timeouts indicate that work is taking longer than the system is willing to wait, whether because a dependency is slow, a queue is backed up, or a deadline budget was set too tightly. They are distinct from outright unavailability: the target may still be alive but failed to respond in time.",
+    "example": "The biomarker-ingest worker waited 30s for the lab-results API and aborted the request when no response arrived before the deadline."
+  },
+  "CONNECTION_REFUSED": {
+    "definition": "A network connection to a dependency could not be established because the remote endpoint actively rejected it (e.g. nothing is listening on the target port, or a firewall reset the handshake). Unlike a timeout, the failure is immediate and explicit: the transport layer received a refusal rather than silence. It usually signals a crashed process, a misrouted address, or a not-yet-started service.",
+    "example": "The protocol-scheduler tried to open a TCP connection to the cohort-store on port 5432 and received an immediate RST because the database process was down."
+  },
+  "RATE_LIMIT_EXCEEDED": {
+    "definition": "A request was rejected because the caller surpassed a permitted request quota over a time window, as enforced by a throttle, token bucket, or upstream provider. The dependency is healthy and reachable; it is deliberately shedding load to protect itself. Repeated hits often indicate a retry storm, a missing backoff, or under-provisioned quota.",
+    "example": "The intervention-recommender exceeded the 600 requests-per-minute quota on the external genomics API and received HTTP 429 for subsequent calls."
+  },
+  "AUTHENTICATION_FAILURE": {
+    "definition": "A caller's identity could not be verified: credentials were missing, malformed, expired, or did not match a known principal. This failure happens before any permission check, because the system cannot establish who is asking. Causes range from rotated secrets and clock skew on signed tokens to a client that never authenticated at all.",
+    "example": "The data-export service presented a JWT whose signature failed verification because the signing key had been rotated, so the gateway rejected it as unauthenticated."
+  },
+  "AUTHORIZATION_DENIED": {
+    "definition": "A caller was successfully authenticated but lacked the permission required for the requested action or resource. Identity is known; the policy decision is 'no'. This distinguishes a legitimately-scoped principal acting outside its grants from an unknown or unverified one, and often surfaces misconfigured roles or over-broad client expectations.",
+    "example": "An authenticated analytics component requested raw patient consent records but its role only granted access to anonymized aggregates, so the policy engine denied the read."
+  },
+  "SCHEMA_VALIDATION_ERROR": {
+    "definition": "An inbound or outbound payload failed to conform to its declared schema or contract: a required field was absent, a type was wrong, an enum value was out of range, or a constraint was violated. The data is structurally untrustworthy and is rejected at the boundary before it can propagate. This is the substrate's own primary defense and a common cross-component integration fault.",
+    "example": "A failure event submitted to the substrate carried a severity_tier of 'FATAL', which is outside the closed five-mode enumeration, so Pydantic rejected the write."
+  },
+  "DATA_CORRUPTION": {
+    "definition": "Stored or transmitted data was found to be internally inconsistent or damaged relative to its expected integrity (a checksum mismatch, a truncated record, a broken hash link, or impossible values). The bytes are present but no longer trustworthy. Corruption may originate from faulty storage media, partial writes, encoding bugs, or tampering.",
+    "example": "A stored failure record's recomputed parent_hash did not match the persisted value, indicating the row had been altered or partially written after insertion."
+  },
+  "RESOURCE_EXHAUSTION": {
+    "definition": "An operation failed because a finite local resource was depleted: memory, disk space, file descriptors, thread-pool slots, or connection-pool capacity. The system could not acquire what it needed to make progress and had to reject or abort work. Exhaustion is often the visible symptom of a leak, an unbounded queue, or a load spike outpacing capacity.",
+    "example": "The cohort-aggregation job was killed by the OOM reaper after loading a 12 GB result set into memory on an 8 GB worker."
+  },
+  "DEPENDENCY_UNAVAILABLE": {
+    "definition": "A required downstream service or subsystem was unreachable or reported itself as not ready, so the operation could not proceed. This is broader than a single refused connection or timeout: the dependency as a whole is considered down (failing health checks, no healthy instances behind the load balancer, or in maintenance). It is the canonical trigger for cross-component cascades.",
+    "example": "The model-serving tier returned no healthy instances during a rolling deploy, so every component depending on inference received a dependency-unavailable error."
+  },
+  "CONFIGURATION_ERROR": {
+    "definition": "The system could not operate correctly because its configuration was missing, malformed, internally contradictory, or pointed at the wrong target. The failure is not in the data flowing through the system but in the parameters governing it. These often appear at startup or immediately after a deploy or config change.",
+    "example": "A component started with an empty DATABASE_URL environment variable and could not construct its engine, halting initialization."
+  },
+  "SERIALIZATION_ERROR": {
+    "definition": "Encoding a value to a wire or storage format, or decoding it back, failed. The structure could not be represented (a non-serializable object, a circular reference, an encoding mismatch) or could not be parsed (truncated JSON, invalid UTF-8, version-incompatible payload). It breaks the contract that data can round-trip between components.",
+    "example": "A downstream consumer received a message whose JSON body was truncated mid-object and raised a decode error while parsing it."
+  },
+  "DEADLOCK": {
+    "definition": "Two or more concurrent operations became permanently blocked, each waiting on a resource the other holds, forming a circular wait that cannot resolve without intervention. No progress is possible and the participants are typically aborted by a deadlock detector or lock-wait timeout. It signals a lock-ordering or transaction-design flaw under concurrency.",
+    "example": "Two writers updating overlapping cohort rows in opposite key order triggered the database's deadlock detector, which aborted one transaction as the victim."
+  },
+  "INTEGRITY_CONSTRAINT_VIOLATION": {
+    "definition": "A database write was rejected because it would violate a declared constraint: a uniqueness collision, a foreign-key reference to a non-existent row, a not-null on a missing column, or a check constraint. The store actively protected its invariants by refusing the operation. It commonly surfaces duplicate submissions or out-of-order inserts.",
+    "example": "Inserting a second failure record with an already-used sequence number violated the unique constraint on the failures table and the write was rejected."
+  },
+  "NETWORK_PARTITION": {
+    "definition": "Connectivity between groups of nodes was severed while the nodes themselves remained alive, splitting the cluster into isolated sides that can no longer coordinate. Quorum or consensus may be lost, and the two sides risk diverging. Partitions force availability-versus-consistency trade-offs and can produce confusing partial failures.",
+    "example": "A switch failure isolated the secondary datacenter, and the replication layer lost quorum, leaving the partitioned replicas unable to accept coordinated writes."
+  },
+  "MODEL_INFERENCE_FAILURE": {
+    "definition": "A machine-learning model failed to produce a usable result: it raised during inference, returned a malformed or out-of-distribution output, breached a confidence floor, or could not be loaded. The surrounding pipeline cannot trust or use the prediction and must reject or fall back. This is a longevity-AI-specific operational fault distinct from ordinary code errors.",
+    "example": "The biological-age estimator returned NaN for a patient whose input features fell far outside the training distribution, so the recommender discarded the prediction."
+  }
+}
