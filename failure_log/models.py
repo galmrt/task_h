@@ -79,7 +79,6 @@ class FailureRecord(FailureEvent):
     sequence: int
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     parent_hash: str
-    record_hash: str
 
 
 class FailureQuery(BaseModel):
