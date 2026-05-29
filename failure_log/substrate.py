@@ -119,14 +119,23 @@ class FailureSubstrate:
     # cascade_path
     # -------------------------------------------------------------------------
 
-    def cascade_path(self, failure_id: FailureId) -> CascadeChain:
+    def cascade_path(
+        self,
+        failure_id: FailureId,
+        time_window: tuple[datetime, datetime] | None = None,
+    ) -> CascadeChain:
         """Return the cascade chain for the given failure.
 
         Walks parent_failure_id upward to the root via a recursive CTE (correct on
-        chains up to depth 50), then collects all other nodes in the same cascade
-        tree as siblings. Raises KeyError if failure_id is not found.
+        chains up to depth 50), then collects sibling branches — other nodes reachable
+        downward from the root that are not on the ancestor path.
+
+        ``time_window`` narrows siblings to those whose timestamp falls within
+        [start, end], implementing the spec requirement that only branches sharing
+        an ancestor *within the time window* are included. The ancestor path is always
+        returned in full. Raises KeyError if failure_id is not found.
         """
-        path, siblings = self._store.cascade_path(failure_id)
+        path, siblings = self._store.cascade_path(failure_id, time_window)
         if not path:
             raise KeyError(f"No failure found with id={failure_id}")
         return CascadeChain(target_id=failure_id, path=path, siblings=siblings)

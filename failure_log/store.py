@@ -178,14 +178,24 @@ class FailureStore:
         ]
 
     def cascade_path(
-        self, failure_id: UUID, max_depth: int = 50
+        self,
+        failure_id: UUID,
+        time_window: tuple[datetime, datetime] | None = None,
+        max_depth: int = 50,
     ) -> tuple[list[FailureRecord], list[FailureRecord]]:
         """Return (path, siblings) for the cascade containing ``failure_id``.
 
         ``path`` is the ancestor chain ordered root-first through to the target, walked
         upward via a recursive CTE (correct for chains up to ``max_depth``). ``siblings``
         are the other nodes in the same cascade tree (everything reachable downward from
-        the root that is not on the path). An empty path means the id was not found.
+        the root that is not on the path).
+
+        If ``time_window`` is given, only siblings whose timestamp falls within
+        [start, end] are returned — matching the spec requirement that sibling branches
+        are those sharing an ancestor *within the time window*. The path itself is
+        always returned in full regardless of the window.
+
+        An empty path means the id was not found.
         """
         path = self._ancestors(failure_id, max_depth)
         if not path:
@@ -193,6 +203,13 @@ class FailureStore:
         tree = self._descendants(path[0].failure_id, max_depth)
         path_ids = {r.failure_id for r in path}
         siblings = [r for r in tree if r.failure_id not in path_ids]
+        if time_window is not None:
+            start, end = time_window
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=timezone.utc)
+            if end.tzinfo is None:
+                end = end.replace(tzinfo=timezone.utc)
+            siblings = [r for r in siblings if start <= r.timestamp <= end]
         return path, siblings
 
     def _ancestors(self, failure_id: UUID, max_depth: int) -> list[FailureRecord]:

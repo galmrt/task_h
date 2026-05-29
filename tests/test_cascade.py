@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
 import pytest
 
@@ -103,3 +104,49 @@ def test_cascade_depth_50_chain_completes(substrate: FailureSubstrate) -> None:
 def test_cascade_missing_id_raises_key_error(substrate: FailureSubstrate) -> None:
     with pytest.raises(KeyError):
         substrate.cascade_path(uuid.uuid4())
+
+
+def test_cascade_time_window_filters_siblings(substrate: FailureSubstrate) -> None:
+    """Siblings outside the time window are excluded; the ancestor path is unaffected."""
+    early = datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc)
+    late  = datetime(2024, 6, 1, 0, 0, tzinfo=timezone.utc)
+
+    root_id = substrate.log_failure(_make_event(
+        timestamp=early,
+        originating_component_id="root-svc",
+    ))
+    # sibling logged at early time — inside a narrow window
+    inside_id = substrate.log_failure(_make_event(
+        timestamp=early.replace(hour=1),
+        parent_failure_id=root_id,
+        originating_component_id="inside-window-svc",
+    ))
+    # sibling logged much later — outside that narrow window
+    outside_id = substrate.log_failure(_make_event(
+        timestamp=late,
+        parent_failure_id=root_id,
+        originating_component_id="outside-window-svc",
+    ))
+    target_id = substrate.log_failure(_make_event(
+        timestamp=early.replace(hour=2),
+        parent_failure_id=root_id,
+        originating_component_id="target-svc",
+    ))
+
+    window = (early, early.replace(hour=12))   # covers early-day events only
+    chain = substrate.cascade_path(target_id, time_window=window)
+
+    sibling_ids = {r.failure_id for r in chain.siblings}
+    assert inside_id in sibling_ids
+    assert outside_id not in sibling_ids
+    # path is always complete regardless of window
+    assert len(chain.path) == 2   # root → target
+
+
+def test_cascade_no_time_window_returns_all_siblings(cascade_tree: dict) -> None:
+    """Omitting time_window returns all descendants as siblings (backward compat)."""
+    s: FailureSubstrate = cascade_tree["substrate"]
+    chain = s.cascade_path(cascade_tree["grandchild_id"])
+    sibling_ids = {r.failure_id for r in chain.siblings}
+    assert cascade_tree["child_b_id"] in sibling_ids
+    assert cascade_tree["great_grandchild_id"] in sibling_ids
