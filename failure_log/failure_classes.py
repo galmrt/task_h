@@ -1,9 +1,6 @@
 """Closed failure-class enumeration, loaded from config/failure_classes.json.
 
-The JSON file is the single source of truth: it defines both the closed set of
-class names and their human-readable definitions/examples. The dynamic ``Enum``
-built here is what Pydantic validates the ``failure_class`` field against at write
-time, so adding or removing a class is a config edit — never a code edit.
+Adding or removing a class is a JSON edit; no code change required.
 """
 from __future__ import annotations
 
@@ -21,7 +18,6 @@ def _load() -> dict[str, dict[str, str]]:
 
 _DATA = _load()
 
-# Closed enumeration: the keys of the JSON, nothing more.
 FailureClass = Enum("FailureClass", {k: k for k in _DATA}, type=str)  # type: ignore[misc]
 
 FAILURE_DEFINITIONS: dict[str, str] = {k: v["definition"] for k, v in _DATA.items()}

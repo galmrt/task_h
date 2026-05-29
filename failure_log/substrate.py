@@ -1,14 +1,7 @@
-"""FailureSubstrate — the sole public interface for the failure-logging substrate.
+"""FailureSubstrate — public interface for the failure-logging substrate.
 
-The four required methods mirror the spec:
-  log_failure(failure)            -> FailureId
-  query(filters)                  -> list[FailureRecord]
-  aggregate(time_window, group_by) -> FailureAggregation
-  cascade_path(failure_id)        -> CascadeChain
-
-All writes flow through log_failure -> FailureStore.insert and nowhere else.
-The hash chain (parent_hash) is computed here before the record reaches the store,
-so the store stays a pure persistence layer with no business logic.
+All writes flow through ``log_failure``; the hash chain is computed here before the
+record reaches the store, keeping the store a pure persistence layer.
 """
 from __future__ import annotations
 
@@ -50,17 +43,8 @@ class FailureSubstrate:
     def __init__(self, db_url: str = "sqlite:///:memory:") -> None:
         self._store = FailureStore(make_engine(db_url))
 
-    # -------------------------------------------------------------------------
-    # log_failure — the sole write path
-    # -------------------------------------------------------------------------
-
     def log_failure(self, failure: FailureEvent) -> FailureId:
-        """Validate, hash-chain, and persist a failure. Returns the new failure_id.
-
-        The only legitimate way to write a failure. Schema is validated by Pydantic
-        on the FailureEvent before this method is called, and again when FailureRecord
-        is constructed — making schema bypass impossible to introduce silently.
-        """
+        """Validate, hash-chain, and persist a failure. Returns the new failure_id."""
         timestamp = failure.timestamp or datetime.now(timezone.utc)
 
         latest = self._store.get_latest()
@@ -86,17 +70,9 @@ class FailureSubstrate:
         self._store.insert(record)
         return record.failure_id
 
-    # -------------------------------------------------------------------------
-    # query
-    # -------------------------------------------------------------------------
-
     def query(self, filters: FailureQuery) -> list[FailureRecord]:
         """Return all failures matching the given filters, ordered by sequence."""
         return self._store.query(filters)
-
-    # -------------------------------------------------------------------------
-    # aggregate
-    # -------------------------------------------------------------------------
 
     def aggregate(
         self,
@@ -115,10 +91,6 @@ class FailureSubstrate:
         buckets = self._store.aggregate(group_by, start, end)
         return FailureAggregation(group_by=group_by, buckets=buckets)
 
-    # -------------------------------------------------------------------------
-    # cascade_path
-    # -------------------------------------------------------------------------
-
     def cascade_path(
         self,
         failure_id: FailureId,
@@ -126,14 +98,10 @@ class FailureSubstrate:
     ) -> CascadeChain:
         """Return the cascade chain for the given failure.
 
-        Walks parent_failure_id upward to the root via a recursive CTE (correct on
-        chains up to depth 50), then collects sibling branches — other nodes reachable
-        downward from the root that are not on the ancestor path.
-
-        ``time_window`` narrows siblings to those whose timestamp falls within
-        [start, end], implementing the spec requirement that only branches sharing
-        an ancestor *within the time window* are included. The ancestor path is always
-        returned in full. Raises KeyError if failure_id is not found.
+        Walks ``parent_failure_id`` upward to the root via a recursive CTE, then
+        collects sibling branches (nodes reachable from the root not on the ancestor
+        path). ``time_window`` narrows siblings by timestamp; the path is always full.
+        Raises ``KeyError`` if ``failure_id`` is not found.
         """
         path, siblings = self._store.cascade_path(failure_id, time_window)
         if not path:

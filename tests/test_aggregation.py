@@ -54,7 +54,6 @@ def test_aggregate_multi_dimension(loaded: FailureSubstrate) -> None:
     for bucket in result.buckets:
         assert "originating_component_id" in bucket.keys
         assert "failure_class" in bucket.keys
-    # alpha+TIMEOUT, beta+CONNECTION_REFUSED, gamma+TIMEOUT — at least 3 distinct groups
     groups = {(b.keys["originating_component_id"], b.keys["failure_class"]) for b in result.buckets}
     assert ("alpha", "TIMEOUT") in groups
     assert ("beta", "CONNECTION_REFUSED") in groups

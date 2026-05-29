@@ -65,16 +65,14 @@ def test_tampered_record_breaks_hash_chain(substrate: FailureSubstrate) -> None:
     substrate.log_failure(_make_event())
     r0, r1 = substrate.query(FailureQuery())
 
-    # Chain is intact before any tampering
     assert r1.parent_hash == _record_hash(r0)
 
-    # Simulate in-memory tampering of one field
     tampered = FailureRecord(
         failure_id=r0.failure_id,
         sequence=r0.sequence,
         timestamp=r0.timestamp,
         failure_class=r0.failure_class,
-        severity_tier=SeverityTier.CRITICAL,   # field changed
+        severity_tier=SeverityTier.CRITICAL,
         downstream_impact_envelope=r0.downstream_impact_envelope,
         originating_component_id=r0.originating_component_id,
         root_cause_hypothesis=r0.root_cause_hypothesis,

@@ -1,23 +1,15 @@
 #!/usr/bin/env python3
-"""Static-analysis CI check for the failure-logging substrate.
+#!/usr/bin/env python3
+"""Static-analysis CI check — two AST-based rules.
 
-Two checks, both AST-based:
+1. Append-only: ``failure_log/store.py`` must define no method named ``update`` or ``delete``.
+2. Bypass: no ``.py`` file under the scan root may contain a raw SQL INSERT into the
+   ``failures`` table. Sanctioned write path: ``log_failure() -> FailureStore.insert()``.
 
-1. Append-only — failure_log/store.py must define no method named 'update' or 'delete'.
-   Their absence is the static guarantee that no future PR can introduce a mutation
-   primitive. Spot-verify manually: grep -n "def update" failure_log/store.py
+Scans ``failure_log/`` by default. Pass an explicit path to target a different file or
+directory (used by tests against the planted fixture).
 
-2. Bypass — no .py file under the scan root may contain a raw SQL string that inserts
-   directly into the 'failures' table. The only sanctioned write path is:
-     log_failure() -> FailureStore.insert() -> SQLAlchemy table-insert expression.
-   A raw SQL INSERT bypasses Pydantic validation and the hash chain entirely.
-
-The bypass check scans failure_log/ by default (production code only). Pass an
-explicit path to scan a different file or directory — used by tests to verify the
-check fires on the planted fixture in tests/fixtures/bypass_violation_sample.py.
-
-Exit 0: all checks pass.
-Exit 1: one or more violations found (printed to stdout).
+Exit 0 on success, exit 1 on violations.
 
 Usage (from task_h/):
     python scripts/check_static_analysis.py
@@ -35,13 +27,10 @@ _STORE = _ROOT / "failure_log" / "store.py"
 _DEFAULT_SCAN = _ROOT / "failure_log"  # production code only
 
 _FORBIDDEN_METHODS = {"update", "delete"}
-
-# Matches any string literal that raw-inserts into the failures table.
 _INSERT_PATTERN = re.compile(r"\bINSERT\s+INTO\s+failures\b", re.IGNORECASE)
 
 
 def _is_user_file(path: Path) -> bool:
-    """Skip generated, hidden, and cache directories."""
     try:
         parts = path.resolve().relative_to(_ROOT.resolve()).parts
     except ValueError:
@@ -52,10 +41,6 @@ def _is_user_file(path: Path) -> bool:
         for part in parts
     )
 
-
-# ---------------------------------------------------------------------------
-# Check 1 — append-only
-# ---------------------------------------------------------------------------
 
 def check_append_only() -> list[str]:
     """store.py must contain no method definition named 'update' or 'delete'."""
@@ -72,15 +57,11 @@ def check_append_only() -> list[str]:
     return violations
 
 
-# ---------------------------------------------------------------------------
-# Check 2 — bypass
-# ---------------------------------------------------------------------------
-
 def check_bypass(scan_root: Path | None = None) -> list[str]:
-    """No .py file under scan_root may contain a raw SQL INSERT into the failures table.
+    """Scan for raw SQL INSERTs into the failures table.
 
-    Defaults to failure_log/ (production code). Pass a specific file or directory to
-    scan a different target — the test suite uses this to verify the planted fixture fires.
+    Defaults to ``failure_log/``. Pass a specific path to target a different file or
+    directory — the test suite uses this to verify the planted fixture fires.
     """
     root = scan_root or _DEFAULT_SCAN
     files = sorted(root.rglob("*.py")) if root.is_dir() else [root]
@@ -102,12 +83,7 @@ def check_bypass(scan_root: Path | None = None) -> list[str]:
     return violations
 
 
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
-
 def main() -> int:
-    # Allow an explicit scan path as an optional CLI argument.
     scan_path = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else None
     ao = check_append_only()
     bp = check_bypass(scan_path)

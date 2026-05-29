@@ -1,14 +1,8 @@
-"""Pydantic schema — the single source of truth for what a failure *is*.
+"""Pydantic schema — single source of truth for what a failure is.
 
-Every invariant is enforced here at construction time, so a malformed failure can
-never reach the DAO. The split mirrors Task F: ``FailureEvent`` is the caller-supplied
-input (only what the caller knows); ``FailureRecord`` is the full, frozen persisted form
-with substrate-computed fields (sequence, hashes).
-
-Note on ``group_by``: the spec lists it among the failure fields, but it is the
-parameter to ``aggregate()`` (the set of dimensions to group over), not a per-failure
-attribute — so it is intentionally not a stored column. See ``FailureQuery`` /
-``FailureAggregation``.
+Every invariant is enforced at construction time; a malformed event can never reach
+the store. ``FailureEvent`` is caller-supplied input; ``FailureRecord`` extends it with
+substrate-computed fields (sequence, hashes).
 """
 from __future__ import annotations
 
@@ -20,10 +14,8 @@ from pydantic import BaseModel, Field
 
 from failure_log.failure_classes import FailureClass
 
-# Type alias for the public interface (log_failure -> FailureId, cascade_path(failure_id)).
 FailureId = UUID
 
-# Character-length floor and ceiling for the free-text root-cause hypothesis.
 ROOT_CAUSE_MIN_LEN = 20
 ROOT_CAUSE_MAX_LEN = 2000
 
@@ -47,11 +39,7 @@ class DownstreamImpactEnvelope(str, Enum):
 
 
 class FailureEvent(BaseModel):
-    """Caller-supplied input. Only what the caller knows — no computed fields.
-
-    ``timestamp`` is optional: if omitted the substrate stamps it at write time.
-    Supplying it lets callers (and tests) backfill an exact occurrence time.
-    """
+    """Caller-supplied input. ``timestamp`` is optional; substrate stamps it if omitted."""
 
     model_config = {"extra": "forbid"}
 
@@ -67,11 +55,7 @@ class FailureEvent(BaseModel):
 
 
 class FailureRecord(FailureEvent):
-    """Full persisted form. Extends FailureEvent with substrate-computed fields.
-
-    Immutable after creation (``frozen``) — the append-only posture starts in the type
-    system: you cannot mutate a record object, just as the DAO cannot mutate a row.
-    """
+    """Full persisted form. Frozen — immutable by construction, mirroring the append-only store."""
 
     model_config = {"frozen": True, "extra": "forbid"}
 
@@ -82,7 +66,7 @@ class FailureRecord(FailureEvent):
 
 
 class FailureQuery(BaseModel):
-    """Filter set for ``query()``. All fields optional; omitted fields are unconstrained."""
+    """Filter set for ``query()``. All fields optional."""
 
     model_config = {"extra": "forbid"}
 
@@ -96,7 +80,7 @@ class FailureQuery(BaseModel):
 
 
 class AggregationBucket(BaseModel):
-    """One output row of ``aggregate()``: a group-key/date combination and its count."""
+    """One output row of ``aggregate()``: a group-key/date bucket and its count."""
 
     keys: dict[str, str]
     date_bucket: str
@@ -113,9 +97,8 @@ class FailureAggregation(BaseModel):
 class CascadeChain(BaseModel):
     """Result of ``cascade_path()``.
 
-    ``path`` is the ancestor chain ordered root-first through to the target failure.
-    ``siblings`` are other failures that share an ancestor with the target and fall
-    within the cascade's time window (the sibling branches of the cascade tree).
+    ``path``: ancestor chain, root-first to target.
+    ``siblings``: other nodes in the cascade tree that share an ancestor with the target.
     """
 
     target_id: FailureId

@@ -1,6 +1,4 @@
-# Intentional bypass violation — for static-analysis tests ONLY.
-# This file must never be imported in production code.
-# scripts/check_static_analysis.py is expected to flag the string below.
+"""Intentional bypass violation — static-analysis tests only. Not for import."""
 
 VIOLATION_SQL = (
     "INSERT INTO failures (failure_id, sequence, failure_class, severity_tier, "

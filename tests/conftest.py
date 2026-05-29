@@ -1,9 +1,4 @@
-"""Shared fixtures for the task_h test suite.
-
-sys.path is patched here so that both ``failure_log`` (the package) and
-``scripts/check_static_analysis`` (a standalone script, not a package) are
-importable regardless of the directory from which pytest is invoked.
-"""
+"""Shared fixtures for the task_h test suite."""
 from __future__ import annotations
 
 import sys

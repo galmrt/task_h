@@ -1,9 +1,8 @@
-"""Append-only store — the *only* code allowed to touch the failures table.
+"""Append-only store — the only code allowed to touch the failures table.
 
-Critical invariant: this module exposes **no update() and no delete() method**. Their
-absence is the static guarantee (the CI check in scripts/ verifies no such primitive is
-added by a future PR). At runtime, a guard on the engine additionally blocks any raw
-UPDATE/DELETE statement, so even hand-written SQL cannot mutate a stored failure.
+No ``update()`` or ``delete()`` method exists by design; the CI check in scripts/ enforces
+this statically. At runtime, a SQLAlchemy event guard additionally blocks any raw
+UPDATE/DELETE statement.
 """
 from __future__ import annotations
 
@@ -27,10 +26,8 @@ from failure_log.models import (
     SeverityTier,
 )
 
-# Every first failure in a fresh substrate uses this as its parent_hash.
 GENESIS_HASH: str = hashlib.sha256(b"").hexdigest()
 
-# The single SQLite table backing the substrate. Maps cleanly to Postgres.
 FAILURES_TABLE = "failures"
 
 _metadata = sa.MetaData()
@@ -50,16 +47,12 @@ _failures = sa.Table(
     Column("parent_hash", String(64), nullable=False),
 )
 
-# Dimensions aggregate() may group over — the closed set from the spec.
 _GROUPABLE_COLUMNS: dict[str, sa.Column[Any]] = {
     "originating_component_id": _failures.c.originating_component_id,
     "failure_class": _failures.c.failure_class,
     "severity_tier": _failures.c.severity_tier,
     "downstream_impact_envelope": _failures.c.downstream_impact_envelope,
 }
-
-# Append-only invariant: this module exposes no update() or delete() methods.
-# Absence of those methods is the static guarantee. The CI check greps the AST for them.
 
 
 def make_engine(url: str = "sqlite:///:memory:") -> Engine:
@@ -82,7 +75,7 @@ def _attach_append_only_guard(engine: Engine) -> None:
 
 
 class FailureStore:
-    """Append-only data access for failures. No update/delete — by construction."""
+    """Append-only data access for the failures table."""
 
     def __init__(self, engine: Engine) -> None:
         self._engine = engine

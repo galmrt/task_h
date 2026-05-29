@@ -89,16 +89,16 @@ pytest tests/test_cascade.py
 pytest tests/test_cascade.py::test_cascade_depth_50_chain_completes
 ```
 
-45 tests across 6 files:
+47 tests across 6 files:
 
-| File | Coverage |
-|---|---|
-| `test_schema_rejection.py` | Unknown class, bad severity/envelope, root_cause floor/ceiling, empty component, extra field, bad UUID type |
-| `test_append_only.py` | UPDATE/DELETE raise `AppendOnlyViolationError`, no update/delete method on DAO, genesis hash, hash chain links, tamper detection |
-| `test_static_analysis.py` | Clean package passes both checks, planted bypass fixture fires, monkeypatched store with `update`/`delete` triggers check |
-| `test_cascade.py` | Root-first ordering, sibling inclusion, path/sibling disjoint, single node, root as target, depth-6 chain, depth-50 chain, missing ID raises `KeyError` |
-| `test_aggregation.py` | Single dim, multi-dim, day separation, count correctness, empty window, unknown dim raises `ValueError`, empty `group_by` raises |
-| `test_query.py` | Each filter individually, combined filters, empty filter returns all, sequence ordering |
+| File | Tests | Coverage |
+|---|---|---|
+| `test_schema_rejection.py` | 10 | Unknown class, bad severity/envelope, root_cause floor/ceiling, empty component, extra field, bad UUID type |
+| `test_cascade.py` | 10 | Root-first ordering, sibling inclusion, path/sibling disjoint, single node, root as target, depth-6 chain, depth-50 chain, time-window filtering, missing ID raises `KeyError` |
+| `test_append_only.py` | 7 | UPDATE/DELETE raise `AppendOnlyViolationError`, no update/delete method on DAO, genesis hash, hash chain links, tamper detection |
+| `test_aggregation.py` | 7 | Single dim, multi-dim, day separation, count correctness, empty window, unknown dim raises `ValueError`, empty `group_by` raises |
+| `test_static_analysis.py` | 7 | Clean package passes both checks, planted bypass fixture fires, monkeypatched store with `update`/`delete` triggers check, main exit code |
+| `test_query.py` | 6 | Each filter individually, combined filters, empty filter returns all, sequence ordering |
 
 ## Static-Analysis CI Check
 

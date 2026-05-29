@@ -43,7 +43,6 @@ def test_append_only_check_fires_on_store_with_delete(tmp_path: Path, monkeypatc
 
 
 def test_bypass_check_returns_empty_list_for_empty_directory(tmp_path: Path) -> None:
-    """A directory with no .py files produces no violations."""
     (tmp_path / "readme.txt").write_text("nothing here")
     violations = checker.check_bypass(tmp_path)
     assert violations == []

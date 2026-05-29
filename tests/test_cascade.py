@@ -66,7 +66,6 @@ def test_cascade_root_returns_all_descendants_as_siblings(cascade_tree: dict) ->
     s: FailureSubstrate = cascade_tree["substrate"]
     chain = s.cascade_path(cascade_tree["root_id"])
     assert len(chain.path) == 1
-    # All 4 non-root nodes appear as siblings
     assert len(chain.siblings) == 4
 
 
@@ -115,13 +114,11 @@ def test_cascade_time_window_filters_siblings(substrate: FailureSubstrate) -> No
         timestamp=early,
         originating_component_id="root-svc",
     ))
-    # sibling logged at early time — inside a narrow window
     inside_id = substrate.log_failure(_make_event(
         timestamp=early.replace(hour=1),
         parent_failure_id=root_id,
         originating_component_id="inside-window-svc",
     ))
-    # sibling logged much later — outside that narrow window
     outside_id = substrate.log_failure(_make_event(
         timestamp=late,
         parent_failure_id=root_id,
@@ -133,14 +130,13 @@ def test_cascade_time_window_filters_siblings(substrate: FailureSubstrate) -> No
         originating_component_id="target-svc",
     ))
 
-    window = (early, early.replace(hour=12))   # covers early-day events only
+    window = (early, early.replace(hour=12))
     chain = substrate.cascade_path(target_id, time_window=window)
 
     sibling_ids = {r.failure_id for r in chain.siblings}
     assert inside_id in sibling_ids
     assert outside_id not in sibling_ids
-    # path is always complete regardless of window
-    assert len(chain.path) == 2   # root → target
+    assert len(chain.path) == 2
 
 
 def test_cascade_no_time_window_returns_all_siblings(cascade_tree: dict) -> None:
